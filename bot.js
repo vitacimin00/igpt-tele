@@ -32,6 +32,7 @@ const userManager = new UserManager();
 const memberManager = new MemberManager();
 const voucherManager = new VoucherManager();
 const browserQueue = new BrowserQueue();
+browserQueue.setService(chatgptService);
 
 // ============================================================
 // BOT INIT
