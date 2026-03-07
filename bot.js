@@ -299,10 +299,9 @@ bot.callbackQuery('user:invite_menu', async (ctx) => {
     let text = `🤖 <b>Invite ChatGPT Team</b>\n\n` +
         `Pilih plan yang diinginkan:\n\n` +
         `⏳ <b>Plan 1 Minggu</b>\n` +
-        `├ Durasi: 7 hari\n` +
-        `├ Akses: ChatGPT Team workspace\n` +
-        `├ Desc: Durasi 7 hari (Auto kick)\n` +
-        `└ Garansi: 3 hari\n`;
+        `├ Durasi: 7 hari (Auto kick)\n` +
+        `├ Akses: ChatGPT Team workspace\n` +\n` +
+        `├ Garansi: 3 hari\n`;
 
     if (voucher && priceWeek !== PRICE_1WEEK) {
         text += `└ 💵 <s>${formatRupiah(PRICE_1WEEK)}</s> → <b>${formatRupiah(priceWeek)}</b>\n`;
@@ -311,10 +310,9 @@ bot.callbackQuery('user:invite_menu', async (ctx) => {
     }
 
     text += `\n📅 <b>Plan 1 Bulan</b>\n` +
-        `├ Durasi: 30 hari\n` +
+        `├ Durasi: 25-28 hari\n` +
         `├ Akses: ChatGPT Team workspace\n` +
-        `├ Desc: Durasi 21-28 hari\n` +
-        `└ Garansi: 14 hari (Reinvite "Hubungi Admin")\n`;
+        `├ Garansi: 14 hari (Reinvite "Hubungi Admin")\n`;
 
     if (voucher && priceMonth !== PRICE_1MONTH) {
         text += `└ 💵 <s>${formatRupiah(PRICE_1MONTH)}</s> → <b>${formatRupiah(priceMonth)}</b>\n`;
