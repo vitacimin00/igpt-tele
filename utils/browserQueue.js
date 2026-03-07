@@ -83,13 +83,20 @@ class BrowserQueue {
                 console.log(`📦 Batch: ${batch.length} invites for account ${currentAccountId}`);
             }
 
-            // Execute batch
+            // Execute batch (with timeout per task)
             for (const task of batch) {
                 try {
-                    const result = await task.fn();
+                    const TIMEOUT = 3 * 60 * 1000; // 3 minutes max per task
+                    const result = await Promise.race([
+                        task.fn(),
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('⏰ Timeout: browser operation took too long (3 min)')), TIMEOUT)
+                        )
+                    ]);
                     task.resolve(result);
                 } catch (error) {
-                    task.reject(error);
+                    console.error(`❌ Queue task failed: ${error.message}`);
+                    task.resolve({ success: false, message: error.message });
                 }
             }
         }
