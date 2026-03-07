@@ -8,6 +8,20 @@ class ChatGPTService {
     constructor(accountManager) {
         this.accountManager = accountManager;
         this.loginService = new ChatGPTLoginService(accountManager);
+        this._activeBrowser = null;
+    }
+
+    /**
+     * Force-close any active browser (called on timeout)
+     */
+    async killActiveBrowser() {
+        if (this._activeBrowser) {
+            try {
+                await this._activeBrowser.close();
+                console.log('🔪 Browser zombie ditutup paksa');
+            } catch (e) { }
+            this._activeBrowser = null;
+        }
     }
 
     async handleWorkspaceOnboarding(page) {
@@ -73,6 +87,7 @@ class ChatGPTService {
                 '--disable-blink-features=AutomationControlled',
             ]
         });
+        this._activeBrowser = browser;
 
         const sessionPath = this.accountManager.getSessionPath(account.id);
         const userAgent = this.accountManager.getUserAgent(account.id);
@@ -203,6 +218,7 @@ class ChatGPTService {
                     headless: true,
                     args: ['--disable-blink-features=AutomationControlled']
                 });
+                this._activeBrowser = newBrowser;
 
                 const newContext = await newBrowser.newContext({
                     storageState: sessionPath,
@@ -404,6 +420,7 @@ class ChatGPTService {
             headless: true,
             args: ['--disable-blink-features=AutomationControlled']
         });
+        this._activeBrowser = browser;
 
         const sessionPath = this.accountManager.getSessionPath(account.id);
         const userAgent = this.accountManager.getUserAgent(account.id);
@@ -440,6 +457,7 @@ class ChatGPTService {
                     headless: true,
                     args: ['--disable-blink-features=AutomationControlled']
                 });
+                this._activeBrowser = newBrowser;
                 const newContext = await newBrowser.newContext({
                     storageState: sessionPath,
                     viewport: { width: 1280, height: 720 },
@@ -670,6 +688,7 @@ class ChatGPTService {
             headless: true,
             args: ['--disable-blink-features=AutomationControlled']
         });
+        this._activeBrowser = browser;
 
         const sessionPath = this.accountManager.getSessionPath(account.id);
         const context = await browser.newContext({
