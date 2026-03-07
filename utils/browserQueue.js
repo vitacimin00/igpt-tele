@@ -8,7 +8,12 @@ class BrowserQueue {
     constructor() {
         this.queue = [];
         this.processing = false;
-        this.onUpdate = null; // callback for status updates
+        this.onUpdate = null;
+        this._service = null; // chatgptService reference for killing browsers
+    }
+
+    setService(service) {
+        this._service = service;
     }
 
     /**
@@ -19,24 +24,22 @@ class BrowserQueue {
     add(type, accountId, fn, meta = {}) {
         return new Promise((resolve, reject) => {
             this.queue.push({
-                type,        // 'invite', 'kick', 'login', 'billing'
-                accountId,   // group key for batching
-                fn,          // async function to execute
+                type,
+                accountId,
+                fn,
                 resolve,
                 reject,
-                meta,        // extra info (email, chatId, etc)
+                meta,
                 addedAt: Date.now()
             });
 
             console.log(`📋 Queue: +${type} (${meta.email || accountId}) | total: ${this.queue.length}`);
 
-            // Notify about position if callback set
             if (this.onUpdate) {
                 const position = this.queue.length;
                 this.onUpdate({ type: 'queued', position, meta });
             }
 
-            // Start processing if not already
             if (!this.processing) {
                 this.process();
             }
@@ -56,11 +59,9 @@ class BrowserQueue {
         this.processing = true;
 
         while (this.queue.length > 0) {
-            // Peek first task to determine account
             const currentAccountId = this.queue[0].accountId;
             const currentType = this.queue[0].type;
 
-            // Collect all tasks for the same account AND same type (batch invites)
             const batch = [];
             const remaining = [];
 
@@ -68,7 +69,6 @@ class BrowserQueue {
                 if (task.accountId === currentAccountId && task.type === currentType && currentType === 'invite') {
                     batch.push(task);
                 } else if (batch.length === 0 && task === this.queue[0]) {
-                    // First non-batchable task — take it alone
                     batch.push(task);
                     break;
                 } else {
@@ -76,7 +76,6 @@ class BrowserQueue {
                 }
             }
 
-            // Update queue to remaining
             this.queue = remaining;
 
             if (batch.length > 1) {
@@ -86,7 +85,7 @@ class BrowserQueue {
             // Execute batch (with timeout per task)
             for (const task of batch) {
                 try {
-                    const TIMEOUT = 3 * 60 * 1000; // 3 minutes max per task
+                    const TIMEOUT = 3 * 60 * 1000; // 3 minutes max
                     const result = await Promise.race([
                         task.fn(),
                         new Promise((_, reject) =>
@@ -96,6 +95,10 @@ class BrowserQueue {
                     task.resolve(result);
                 } catch (error) {
                     console.error(`❌ Queue task failed: ${error.message}`);
+                    // Kill zombie browser on timeout/error
+                    if (this._service) {
+                        await this._service.killActiveBrowser();
+                    }
                     task.resolve({ success: false, message: error.message });
                 }
             }
