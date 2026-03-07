@@ -1387,8 +1387,8 @@ bot.callbackQuery('admin:add_account', async (ctx) => {
         `✚ <b>Tambah Akun GPT</b>\n\n` +
         `Kirim data akun dengan format:\n\n` +
         `<code>email password 2fa_secret</code>\n\n` +
-        `Contoh:\n` +
-        `<code>admin@gmail.com pass123 JBSWY3DPEHPK3PXP</code>\n\n` +
+        `Bisa multi akun (1 per baris):\n` +
+        `<code>akun1@gmail.com pass1 2FA1\nakun2@gmail.com pass2 2FA2</code>\n\n` +
         `2FA secret opsional.`,
         { parse_mode: 'HTML', reply_markup: adminBackKeyboard() }
     );
@@ -1766,17 +1766,24 @@ async function handleAdminTextInput(ctx, userId, text, state) {
     }
 
     if (action === 'waiting_add_account') {
-        const parts = text.split(/\s+/);
-        if (parts.length < 2) {
-            await ctx.reply('❌ Format: email password [2fa_secret]');
-            return;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+        const results = [];
+
+        for (const line of lines) {
+            const parts = line.split(/\s+/);
+            if (parts.length < 2) {
+                results.push(`❌ <code>${escapeHtml(line)}</code> — format salah`);
+                continue;
+            }
+            const [email, password, twoFASecret] = parts;
+            const result = accountManager.addAccount(email, password, twoFASecret || '');
+            results.push(result.success
+                ? `✅ ${escapeHtml(email)}`
+                : `❌ ${escapeHtml(email)} — ${escapeHtml(result.message)}`);
         }
 
-        const [email, password, twoFASecret] = parts;
-        const result = accountManager.addAccount(email, password, twoFASecret || '');
-
         await safeEdit(ctx.chat.id, state.messageId,
-            `✚ <b>Tambah Akun</b>\n\n${escapeHtml(result.message)}`,
+            `✚ <b>Tambah Akun</b>\n\n${results.join('\n')}`,
             { parse_mode: 'HTML', reply_markup: adminBackKeyboard() }
         );
         state.action = null;
