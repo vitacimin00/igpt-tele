@@ -300,7 +300,7 @@ bot.callbackQuery('user:invite_menu', async (ctx) => {
         `Pilih plan yang diinginkan:\n\n` +
         `⏳ <b>Plan 1 Minggu</b>\n` +
         `├ Durasi: 7 hari (Auto kick)\n` +
-        `├ Akses: ChatGPT Team workspace\n` +\n` +
+        `├ Akses: ChatGPT Team workspace\n` +
         `├ Garansi: 3 hari\n`;
 
     if (voucher && priceWeek !== PRICE_1WEEK) {
