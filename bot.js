@@ -106,11 +106,10 @@ function adminBackKeyboard() {
 // ============================================================
 function getUserDashboardText(userId, name) {
     const stats = userManager.getUserStats(userId);
-    const activeMembers = memberManager.getAllActiveMembers().filter(m => {
-        // Filter by user — for now show all user's invites
-        return true;
-    });
-    const userActiveCount = memberManager.getAllActiveMembers().length;
+    const accounts = accountManager.listAccounts();
+    const accountIds = accounts.map(a => a.id);
+    const activeOnAccounts = memberManager.getActiveMembersOnAccounts(accountIds).length;
+    const totalInvites = memberManager.getTotalInviteCount();
     const accountStats = accountManager.getAccountStats();
     const voucher = voucherManager.getUserVoucher(String(userId));
 
@@ -126,8 +125,8 @@ function getUserDashboardText(userId, name) {
     }
 
     text += `\n<b>Bot Stats:</b>\n` +
-        `├📊 <b>Invite Aktif:</b> ${userActiveCount}\n` +
-        `├📧 <b>Total Invite:</b> ${stats.totalInvites}\n` +
+        `├📊 <b>Invite Aktif:</b> ${activeOnAccounts}\n` +
+        `├📧 <b>Total Invite:</b> ${totalInvites}\n` +
         `└🟢 <b>Akun ChatGPT Online:</b> ${accountStats.active}/${accountStats.total}\n\n`;
 
     if (voucher) {
@@ -377,8 +376,8 @@ bot.callbackQuery('user:buy_1month', async (ctx) => {
 
 bot.callbackQuery('user:history', async (ctx) => {
     await ctx.answerCallbackQuery();
-    const data = memberManager.loadMembers();
-    const members = data.members || [];
+    const userId = ctx.from.id;
+    const members = memberManager.getMembersByUser(userId);
     
     let text = `📊 <b>Riwayat Invite</b>\n\n`;
     
@@ -471,6 +470,17 @@ bot.callbackQuery(/^confirm_invite:(.+):(.+)$/, async (ctx) => {
         const planLabel = plan === '1month' ? '1 Bulan' : '1 Minggu';
         const basePrice = plan === '1month' ? PRICE_1MONTH : PRICE_1WEEK;
 
+        // Check account availability BEFORE payment
+        const preCheckAccount = accountManager.getAvailableAccount();
+        if (!preCheckAccount) {
+            await ctx.editMessageText(
+                `🚧 <b>Slot Penuh</b>\n\n` +
+                `Semua akun GPT sedang penuh.\nHubungi admin untuk info lebih lanjut.`,
+                { parse_mode: 'HTML', reply_markup: backKeyboard() }
+            );
+            return;
+        }
+
         // Apply voucher discount
         const voucher = voucherManager.getUserVoucher(String(userId));
         const price = voucher ? voucherManager.applyDiscount(basePrice, voucher) : basePrice;
@@ -535,7 +545,7 @@ bot.callbackQuery(/^confirm_invite:(.+):(.+)$/, async (ctx) => {
                 { email }
             ).then(async (result) => {
                 if (result.success) {
-                    const memberRecord = memberManager.addMember(email, account.id, account.email, plan);
+                    const memberRecord = memberManager.addMember(email, account.id, account.email, plan, userId);
                     const timeLeft = memberManager.getTimeRemaining(memberRecord);
                     try {
                         await bot.api.editMessageText(chatId, msgId,
@@ -678,7 +688,7 @@ bot.callbackQuery(/^confirm_invite:(.+):(.+)$/, async (ctx) => {
     ).then(async (result) => {
         if (result.success) {
             userManager.incrementUsage(userId);
-            const memberRecord = memberManager.addMember(email, account.id, account.email, '1week');
+            const memberRecord = memberManager.addMember(email, account.id, account.email, '1week', userId);
             const timeLeft = memberManager.getTimeRemaining(memberRecord);
 
             await bot.api.editMessageText(chatId, msgId,
@@ -1526,7 +1536,7 @@ bot.callbackQuery(/^admin:approve:(.+)$/, async (ctx) => {
         { email: order.email }
     ).then(async (result) => {
         if (result.success) {
-            const memberRecord = memberManager.addMember(order.email, account.id, account.email, order.plan);
+            const memberRecord = memberManager.addMember(order.email, account.id, account.email, order.plan, order.userId);
             order.status = 'completed';
             saveOrders(orders);
 
@@ -1662,6 +1672,13 @@ async function handleUserTextInput(ctx, userId, text, state) {
 
         if (!email.includes('@') || !email.includes('.')) {
             await ctx.reply('❌ Email tidak valid. Coba lagi.');
+            return;
+        }
+
+        // Check email duplication — block if email already active in members
+        const existingMember = memberManager.findMemberByEmail(email);
+        if (existingMember) {
+            await ctx.reply(`❌ Email ${escapeHtml(email)} sudah terdaftar dan masih aktif.\n⏳ Sisa: ${memberManager.getTimeRemaining(existingMember)}`, { parse_mode: 'HTML' });
             return;
         }
 
