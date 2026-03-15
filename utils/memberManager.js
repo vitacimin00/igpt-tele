@@ -37,8 +37,9 @@ class MemberManager {
      * @param {string} gptAccountId - ID akun GPT yang dipakai
      * @param {string} gptAccountEmail - email akun GPT
      * @param {string} plan - '1week' atau '1month'
+     * @param {string} userId - Telegram user ID yang order
      */
-    addMember(userEmail, gptAccountId, gptAccountEmail, plan = '1week') {
+    addMember(userEmail, gptAccountId, gptAccountEmail, plan = '1week', userId = null) {
         const data = this.loadMembers();
 
         const durationMs = plan === '1month'
@@ -50,6 +51,7 @@ class MemberManager {
             userEmail,
             gptAccountId,
             gptAccountEmail,
+            userId: userId ? String(userId) : null,
             invitedAt: now.toISOString(),
             expiresAt: new Date(now.getTime() + durationMs).toISOString(),
             plan,
@@ -116,6 +118,32 @@ class MemberManager {
     getAllActiveMembers() {
         const data = this.loadMembers();
         return data.members.filter(m => m.status === 'active');
+    }
+
+    /**
+     * Ambil member aktif yang hanya ada di akun-akun yang masih exist
+     */
+    getActiveMembersOnAccounts(accountIds) {
+        const data = this.loadMembers();
+        return data.members.filter(m =>
+            m.status === 'active' && accountIds.includes(m.gptAccountId)
+        );
+    }
+
+    /**
+     * Ambil riwayat invite per user (by Telegram userId)
+     */
+    getMembersByUser(userId) {
+        const data = this.loadMembers();
+        return data.members.filter(m => m.userId === String(userId));
+    }
+
+    /**
+     * Total invite sepanjang masa (all members ever)
+     */
+    getTotalInviteCount() {
+        const data = this.loadMembers();
+        return data.members.length;
     }
 
     /**
