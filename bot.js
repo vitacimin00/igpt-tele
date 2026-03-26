@@ -19,8 +19,9 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => id.trim()).filter(Boolean);
 const CHANNEL_ID = process.env.CHANNEL_ID || 'vitaciminstore';
 const CHANNEL_LINK = process.env.CHANNEL_LINK || `https://t.me/${CHANNEL_ID}`;
-const PRICE_1WEEK = parseInt(process.env.PRICE_1WEEK || '25000');
-const PRICE_1MONTH = parseInt(process.env.PRICE_1MONTH || '75000');
+const PRICE_1WEEK = parseInt(process.env.PRICE_1WEEK) || 25000;
+const PRICE_1MONTH = parseInt(process.env.PRICE_1MONTH) || 80000;
+const FREE_INVITE_ENABLED = (process.env.FREE_INVITE_ENABLED || 'true').toLowerCase() === 'true';
 
 // ============================================================
 // SERVICES
@@ -75,7 +76,7 @@ function userDashboardKeyboard(userId) {
     const hasFree = stats.remaining > 0 && stats.type === 'free';
 
     const kb = new InlineKeyboard();
-    if (hasFree) {
+    if (FREE_INVITE_ENABLED && hasFree) {
         kb.text('🎁 Free Invite', 'user:free_invite').row();
     }
     kb.text('📨 Invite ChatGPT', 'user:invite_menu').row();
@@ -117,8 +118,11 @@ function getUserDashboardText(userId, name) {
     const freeStatus = hasFree ? '✅ 1x Available' : '👌 Already Claimed';
 
     let text = `🤖 <b>ChatGPT Auto Invite Bot</b>\n\n` +
-        `👤 ${escapeHtml(name)}\n` +
-        `🎁 <b>Free invite:</b> ${freeStatus}\n`;
+        `👤 ${escapeHtml(name)}\n`;
+
+    if (FREE_INVITE_ENABLED) {
+        text += `🎁 <b>Free invite:</b> ${freeStatus}\n`;
+    }
 
     if (voucher) {
         text += `🎟️ <b>Voucher:</b> ${voucher.code} (${voucherManager.formatDiscount(voucher)}) ✅\n`;
